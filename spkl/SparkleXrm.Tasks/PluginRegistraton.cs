@@ -181,6 +181,11 @@ namespace SparkleXrm.Tasks
             }
         }
 
+        public void RegisterPackage(string package, bool excludePluginSteps = false)
+        {
+            //TODO: Implement package registration
+            throw new NotImplementedException(); 
+        }
         private PluginAssembly RegisterAssembly(FileInfo assemblyFilePath, Assembly assembly, IEnumerable<Type> pluginTypes, bool isWorkflowActivity = false)
         {
             // Get the isolation mode of the first attribute
