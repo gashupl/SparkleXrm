@@ -129,6 +129,7 @@
   <ItemGroup>
     <Compile Include="componenttype.cs" />
     <Compile Include="Config\IConfigFileService.cs" />
+    <Compile Include="Config\PackageDeployConfig.cs" />
     <Compile Include="CrmSvcUtil\ContainerType.cs" />
     <Compile Include="CrmSvcUtil\SourceCodeSplitter.cs" />
     <Compile Include="CrmSvcUtil\SourceCodeTypeExtractor.cs" />
