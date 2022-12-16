@@ -184,8 +184,10 @@ namespace SparkleXrm.Tasks
         public void RegisterPackage(string package, bool excludePluginSteps = false)
         {
             //TODO: Implement package registration
-            throw new NotImplementedException(); 
+            var packageFilePath = new FileInfo(package);
+            RegisterPackage(packageFilePath); 
         }
+
         private PluginAssembly RegisterAssembly(FileInfo assemblyFilePath, Assembly assembly, IEnumerable<Type> pluginTypes, bool isWorkflowActivity = false)
         {
             // Get the isolation mode of the first attribute
@@ -246,6 +248,28 @@ namespace SparkleXrm.Tasks
             }
             return plugin;
         }
+
+        private pluginpackage RegisterPackage(FileInfo assemblyFilePath)
+        {
+            //TODO: Implement package registration logic
+            var package  = (from p in _ctx.CreateQuery<pluginpackage>()
+                         // where p.name == packageName
+                          select new pluginpackage
+                          {
+                              Id = p.Id,
+                              UniqueName = p.UniqueName
+                          }).FirstOrDefault();
+
+            if (package == null)
+            {
+                package = new pluginpackage();
+            }
+
+            // package.
+
+            throw new NotImplementedException(); 
+        }
+
 
         private void UnregisterRemovedPluginTypes(IEnumerable<Type> pluginTypes, PluginAssembly plugin, bool isWorkflowActivity = false)
         {
