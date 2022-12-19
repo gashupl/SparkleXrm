@@ -279,7 +279,7 @@ namespace SparkleXrm.Tasks
                 var pkgReader = new PackageArchiveReader(fsSource);
                 var manifest = Manifest.ReadFrom(pkgReader.GetNuspec(), true);
 
-                var packageName = manifest.Metadata.Id;
+                var packageName = $"{packagePrefix}_{manifest.Metadata.Id}";
                 var version = manifest.Metadata.Version.OriginalVersion;
 
                 string packageBase64 = Convert.ToBase64String(File.ReadAllBytes(packageFilePath.FullName));
@@ -297,7 +297,7 @@ namespace SparkleXrm.Tasks
                     package = new pluginpackage();
                 }
 
-                package.name = $"{ packagePrefix }_{ packageName }";
+                package.name = packageName;
                 package.Content = packageBase64;
                 package.Version = version;
 
