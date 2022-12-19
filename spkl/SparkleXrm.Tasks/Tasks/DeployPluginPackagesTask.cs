@@ -44,12 +44,17 @@ namespace SparkleXrm.Tasks
                     pluginRegistration.SolutionUniqueName = package.solution;
                 }
 
+                if (string.IsNullOrEmpty(package.packageprefix))
+                {
+                    throw new InvalidOperationException("Package prefix is not set"); 
+                }
+
                 foreach (var nugetFilePath in nugets)
                 {
                     try
                     {
                         var excludePluginSteps = this.ExcludePluginSteps || package.excludePluginSteps;
-                        pluginRegistration.RegisterPackage(nugetFilePath, excludePluginSteps);
+                        pluginRegistration.RegisterPackage(nugetFilePath, package.packageprefix, excludePluginSteps);
                     }
 
                     catch (ReflectionTypeLoadException ex)

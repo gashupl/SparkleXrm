@@ -5,6 +5,7 @@
         public string profile;
         public string solution;
         public string packagepath;
+        public string packageprefix; 
         public string classRegex;
         public bool excludePluginSteps;
     }

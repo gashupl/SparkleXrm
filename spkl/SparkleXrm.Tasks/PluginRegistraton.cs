@@ -1,12 +1,14 @@
 ﻿using Microsoft.Crm.Sdk.Messages;
 using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.Client;
+using NuGet.Packaging;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Web.UI.WebControls;
 
 namespace SparkleXrm.Tasks
 {
@@ -181,11 +183,29 @@ namespace SparkleXrm.Tasks
             }
         }
 
-        public void RegisterPackage(string package, bool excludePluginSteps = false)
+        public void RegisterPackage(string file, string packagePrefix, bool excludePluginSteps = false)
         {
             //TODO: Implement package registration
-            var packageFilePath = new FileInfo(package);
-            RegisterPackage(packageFilePath); 
+            var packageFilePath = new FileInfo(file);
+
+            if (!packageFilePath.Name.EndsWith(".nupkg"))
+                return;
+
+            var package = RegisterPackage(packageFilePath, packagePrefix);
+
+            var plugins = package.pluginpackage_pluginassembly.ToList<PluginAssembly>(); 
+
+            if (plugins != null && plugins.Count > 0 && !excludePluginSteps)
+            {
+                foreach(var plugin in plugins)
+                {
+                    var pluginTypes = plugin.pluginassembly_plugintype.ToList<PluginType>();
+                    var types = pluginTypes.Select(t => t.GetType());
+
+                    RegisterPluginSteps(types, plugin);
+                }
+                
+            }
         }
 
         private PluginAssembly RegisterAssembly(FileInfo assemblyFilePath, Assembly assembly, IEnumerable<Type> pluginTypes, bool isWorkflowActivity = false)
@@ -249,25 +269,56 @@ namespace SparkleXrm.Tasks
             return plugin;
         }
 
-        private pluginpackage RegisterPackage(FileInfo assemblyFilePath)
+        private pluginpackage RegisterPackage(FileInfo packageFilePath, string packagePrefix)
         {
             //TODO: Implement package registration logic
-            var package  = (from p in _ctx.CreateQuery<pluginpackage>()
-                         // where p.name == packageName
-                          select new pluginpackage
-                          {
-                              Id = p.Id,
-                              UniqueName = p.UniqueName
-                          }).FirstOrDefault();
-
-            if (package == null)
+            using (var fsSource = new FileStream(packageFilePath.FullName,
+                FileMode.Open, FileAccess.Read, FileShare.Read))
             {
-                package = new pluginpackage();
+
+                var pkgReader = new PackageArchiveReader(fsSource);
+                var manifest = Manifest.ReadFrom(pkgReader.GetNuspec(), true);
+
+                var packageName = manifest.Metadata.Id;
+                var version = manifest.Metadata.Version.OriginalVersion;
+
+                string packageBase64 = Convert.ToBase64String(File.ReadAllBytes(packageFilePath.FullName));
+
+                var package = (from p in _ctx.CreateQuery<pluginpackage>()
+                               where p.UniqueName == packageName
+                               select new pluginpackage
+                               {
+                                   Id = p.Id,
+                                   UniqueName = p.UniqueName
+                               }).FirstOrDefault();
+
+                if (package == null)
+                {
+                    package = new pluginpackage();
+                }
+
+                package.name = $"{ packagePrefix }_{ packageName }";
+                package.Content = packageBase64;
+                package.Version = version;
+
+                if (package.Id == Guid.Empty)
+                {
+                    _trace.WriteLine("Registering Package '{0}' from '{1}'", package.name, packageFilePath.FullName);
+                    // Create
+                    package.Id = _service.Create(package);
+                }
+                else
+                {
+                    //TODO: Modify it into unregistering assemblies?
+                    //UnregisterRemovedPluginTypes(pluginTypes, plugin, isWorkflowActivity);
+
+                    _trace.WriteLine("Updating Package '{0}' from '{1}'", package.name, packageFilePath.FullName);
+                    // Update
+                    _service.Update(package);
+                }
+
+                return package;
             }
-
-            // package.
-
-            throw new NotImplementedException(); 
         }
 
 
