@@ -125,6 +125,18 @@ namespace SparkleXrm.Tasks
             _service.Execute(addToSolution);
         }
 
+        private void AddPackageToSolution(string solutionName, pluginpackage package)
+        {
+            var addToSolution = new AddSolutionComponentRequest()
+            {
+                ComponentId = package.Id,
+                ComponentType = 10090, 
+                SolutionUniqueName = solutionName
+            };
+            _trace.WriteLine("Adding to solution '{0}'", solutionName);
+            _service.Execute(addToSolution);
+        }
+
         private void AddTypeToSolution(string solutionName, PluginType sdkPluginType)
         {
             // Find solution
@@ -193,6 +205,7 @@ namespace SparkleXrm.Tasks
 
             var package = RegisterPackage(packageFilePath, packagePrefix);
 
+            //TODO: Replace this method with retrieving plugin assemblies from dataverse
             var plugins = package.pluginpackage_pluginassembly.ToList<PluginAssembly>(); 
 
             if (plugins != null && plugins.Count > 0 && !excludePluginSteps)
@@ -271,7 +284,6 @@ namespace SparkleXrm.Tasks
 
         private pluginpackage RegisterPackage(FileInfo packageFilePath, string packagePrefix)
         {
-            //TODO: Implement package registration logic
             using (var fsSource = new FileStream(packageFilePath.FullName,
                 FileMode.Open, FileAccess.Read, FileShare.Read))
             {
@@ -315,6 +327,12 @@ namespace SparkleXrm.Tasks
                     _trace.WriteLine("Updating Package '{0}' from '{1}'", package.name, packageFilePath.FullName);
                     // Update
                     _service.Update(package);
+                }
+
+                if (SolutionUniqueName != null)
+                {
+                    _trace.WriteLine("Adding Package '{0}' to solution '{1}'", package.name, SolutionUniqueName);
+                    AddPackageToSolution(SolutionUniqueName, package);
                 }
 
                 return package;
