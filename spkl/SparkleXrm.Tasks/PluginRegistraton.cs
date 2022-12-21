@@ -197,7 +197,6 @@ namespace SparkleXrm.Tasks
 
         public void RegisterPackage(string file, string packagePrefix, bool excludePluginSteps = false)
         {
-            //TODO: Implement package registration
             var packageFilePath = new FileInfo(file);
 
             if (!packageFilePath.Name.EndsWith(".nupkg"))
@@ -205,13 +204,15 @@ namespace SparkleXrm.Tasks
 
             var package = RegisterPackage(packageFilePath, packagePrefix);
 
-            //TODO: Replace this method with retrieving plugin assemblies from dataverse
-            var plugins = package.pluginpackage_pluginassembly.ToList<PluginAssembly>(); 
+            var plugins  = (from p in _ctx.CreateQuery<PluginAssembly>()
+                            where p.PackageId.Id == package.Id
+                            select p).ToList<PluginAssembly>();
 
             if (plugins != null && plugins.Count > 0 && !excludePluginSteps)
             {
                 foreach(var plugin in plugins)
                 {
+                    //TODO: fix retrieving plugin types
                     var pluginTypes = plugin.pluginassembly_plugintype.ToList<PluginType>();
                     var types = pluginTypes.Select(t => t.GetType());
 
