@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Reflection;
 using System.Web.UI.WebControls;
@@ -204,22 +205,68 @@ namespace SparkleXrm.Tasks
 
             var package = RegisterPackage(packageFilePath, packagePrefix);
 
-            var plugins  = (from p in _ctx.CreateQuery<PluginAssembly>()
-                            where p.PackageId.Id == package.Id
-                            select p).ToList<PluginAssembly>();
+            var plugins = (from p in _ctx.CreateQuery<PluginAssembly>()
+                           where p.PackageId.Id == package.Id
+                           select p).ToList<PluginAssembly>();
+
+            var stream = new FileStream(file, FileMode.Open);
+            var archive = new ZipArchive(stream);
+            
 
             if (plugins != null && plugins.Count > 0 && !excludePluginSteps)
             {
-                foreach(var plugin in plugins)
+                foreach (var plugin in plugins)
                 {
-                    //TODO: fix retrieving plugin types
-                    var pluginTypes = plugin.pluginassembly_plugintype.ToList<PluginType>();
-                    var types = pluginTypes.Select(t => t.GetType());
+                    var pluginName = $"{plugin.Name}.dll";
+                    var fileName = archive.GetFiles().FirstOrDefault(f => f.Contains(pluginName));
 
-                    RegisterPluginSteps(types, plugin);
+                    if(file != null)
+                    {
+                        var entry = archive.GetEntry(fileName);
+                        using (var stream2 = new MemoryStream())
+                        {
+                            entry.Open().CopyTo(stream2);
+                            stream2.Position = 0;
+                            var pluginBytes = stream2.ToArray();
+
+                            Assembly peekAssembly = Assembly.Load(pluginBytes);
+
+                            if (peekAssembly == null)
+                                return;
+
+                            IEnumerable<Type> pluginTypes = Reflection.GetTypesImplementingInterface(peekAssembly, typeof(IPlugin));
+
+                            if (pluginTypes.Any())
+                            {
+                                _trace.WriteLine("{0} plugin(s) found!", pluginTypes.Count());
+                                RegisterPluginSteps(pluginTypes, plugin);
+                            }
+                        }
+                    }
+                   
                 }
-                
             }
+
+            //if (plugins != null && plugins.Count > 0 && !excludePluginSteps)
+            //{
+            //    foreach (var plugin in plugins)
+            //    {
+            //        // Load each assembly
+            //        var pluginBytes = Convert.FromBase64String(plugin.Content);
+            //        Assembly peekAssembly = Assembly.Load(pluginBytes);
+
+            //        if (peekAssembly == null)
+            //            return;
+
+            //        IEnumerable<Type> pluginTypes = Reflection.GetTypesImplementingInterface(peekAssembly, typeof(IPlugin));
+
+            //        if (pluginTypes.Any())
+            //        {
+            //            _trace.WriteLine("{0} plugin(s) found!", pluginTypes.Count());
+            //            RegisterPluginSteps(pluginTypes, plugin);
+            //        }
+            //    }         
+            //}
         }
 
         private PluginAssembly RegisterAssembly(FileInfo assemblyFilePath, Assembly assembly, IEnumerable<Type> pluginTypes, bool isWorkflowActivity = false)
