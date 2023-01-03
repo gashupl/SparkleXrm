@@ -239,6 +239,7 @@ namespace SparkleXrm.Tasks
                             if (pluginTypes.Any())
                             {
                                 _trace.WriteLine("{0} plugin(s) found!", pluginTypes.Count());
+                                //TODO 1 Find exception reason
                                 RegisterPluginSteps(pluginTypes, plugin);
                             }
                         }
@@ -246,27 +247,6 @@ namespace SparkleXrm.Tasks
                    
                 }
             }
-
-            //if (plugins != null && plugins.Count > 0 && !excludePluginSteps)
-            //{
-            //    foreach (var plugin in plugins)
-            //    {
-            //        // Load each assembly
-            //        var pluginBytes = Convert.FromBase64String(plugin.Content);
-            //        Assembly peekAssembly = Assembly.Load(pluginBytes);
-
-            //        if (peekAssembly == null)
-            //            return;
-
-            //        IEnumerable<Type> pluginTypes = Reflection.GetTypesImplementingInterface(peekAssembly, typeof(IPlugin));
-
-            //        if (pluginTypes.Any())
-            //        {
-            //            _trace.WriteLine("{0} plugin(s) found!", pluginTypes.Count());
-            //            RegisterPluginSteps(pluginTypes, plugin);
-            //        }
-            //    }         
-            //}
         }
 
         private PluginAssembly RegisterAssembly(FileInfo assemblyFilePath, Assembly assembly, IEnumerable<Type> pluginTypes, bool isWorkflowActivity = false)
