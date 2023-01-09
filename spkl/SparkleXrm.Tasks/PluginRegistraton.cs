@@ -213,7 +213,7 @@ namespace SparkleXrm.Tasks
             {
                 foreach (var plugin in plugins)
                 {
-                    var dir = Guid.NewGuid().ToString();
+                    var dir = $"{Path.GetTempPath()}spkl\\{Guid.NewGuid().ToString()}";
                     Directory.CreateDirectory(dir);
                     ZipFile.ExtractToDirectory(file, dir);
 
@@ -222,7 +222,7 @@ namespace SparkleXrm.Tasks
                         var archive = new ZipArchive(stream);
                         var fileName = archive.GetFiles().FirstOrDefault(f => f.Contains($"{plugin.Name}.dll"));
 
-                        var peekAssembly = Assembly.LoadFrom($"{Directory.GetCurrentDirectory()}\\{dir}\\{fileName}");
+                        var peekAssembly = Assembly.LoadFrom($"{dir}\\{fileName}");
                         IEnumerable<Type> pluginTypes = Reflection.GetTypesImplementingInterface(peekAssembly, typeof(Microsoft.Xrm.Sdk.IPlugin));
 
                         if (pluginTypes.Any())
