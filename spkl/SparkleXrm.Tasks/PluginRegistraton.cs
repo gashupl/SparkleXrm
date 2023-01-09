@@ -208,43 +208,28 @@ namespace SparkleXrm.Tasks
             var plugins = (from p in _ctx.CreateQuery<PluginAssembly>()
                            where p.PackageId.Id == package.Id
                            select p).ToList<PluginAssembly>();
-
-            var stream = new FileStream(file, FileMode.Open);
-            var archive = new ZipArchive(stream);
             
-
             if (plugins != null && plugins.Count > 0 && !excludePluginSteps)
             {
                 foreach (var plugin in plugins)
                 {
-                    var pluginName = $"{plugin.Name}.dll";
-                    var fileName = archive.GetFiles().FirstOrDefault(f => f.Contains(pluginName));
+                    var dir = Guid.NewGuid().ToString();
+                    Directory.CreateDirectory(dir);
+                    ZipFile.ExtractToDirectory(file, dir);
 
-                    if(file != null)
+                    using (var stream = new FileStream(file, FileMode.Open))
                     {
-                        var entry = archive.GetEntry(fileName);
-                        using (var stream2 = new MemoryStream())
+                        var archive = new ZipArchive(stream);
+                        var fileName = archive.GetFiles().FirstOrDefault(f => f.Contains($"{plugin.Name}.dll"));
+
+                        var peekAssembly = Assembly.LoadFrom($"{Directory.GetCurrentDirectory()}\\{dir}\\{fileName}");
+                        IEnumerable<Type> pluginTypes = Reflection.GetTypesImplementingInterface(peekAssembly, typeof(Microsoft.Xrm.Sdk.IPlugin));
+
+                        if (pluginTypes.Any())
                         {
-                            entry.Open().CopyTo(stream2);
-                            stream2.Position = 0;
-                            var pluginBytes = stream2.ToArray();
-
-                            Assembly peekAssembly = Assembly.Load(pluginBytes);
-
-                            if (peekAssembly == null)
-                                return;
-
-                            IEnumerable<Type> pluginTypes = Reflection.GetTypesImplementingInterface(peekAssembly, typeof(IPlugin));
-
-                            if (pluginTypes.Any())
-                            {
-                                _trace.WriteLine("{0} plugin(s) found!", pluginTypes.Count());
-                                //TODO 1 Find exception reason
-                                RegisterPluginSteps(pluginTypes, plugin);
-                            }
+                            RegisterPluginSteps(pluginTypes, plugin, true);
                         }
                     }
-                   
                 }
             }
         }
@@ -394,7 +379,7 @@ namespace SparkleXrm.Tasks
             }
         }
 
-        private void RegisterPluginSteps(IEnumerable<Type> pluginTypes, PluginAssembly plugin)
+        internal void RegisterPluginSteps(IEnumerable<Type> pluginTypes, PluginAssembly plugin, bool nugetAssembly = false)
         {
             var sdkPluginTypes = ServiceLocator.Queries.GetPluginTypes(_ctx, plugin);
 
@@ -409,28 +394,31 @@ namespace SparkleXrm.Tasks
                     // Check if the type is registered
                     sdkPluginType = sdkPluginTypes.Where(t => t.TypeName == pluginType.FullName).FirstOrDefault();
 
-                    if (sdkPluginType == null)
+                    if (!nugetAssembly)
                     {
-                        sdkPluginType = new PluginType();
-                    }
+                        if (sdkPluginType == null)
+                        {
+                            sdkPluginType = new PluginType();
+                        }
 
-                    // Update values
-                    sdkPluginType.Name = pluginType.FullName;
-                    sdkPluginType.PluginAssemblyId = plugin.ToEntityReference();
-                    sdkPluginType.TypeName = pluginType.FullName;
-                    sdkPluginType.FriendlyName = pluginType.FullName;
+                        // Update values
+                        sdkPluginType.Name = pluginType.FullName;
+                        sdkPluginType.PluginAssemblyId = plugin.ToEntityReference();
+                        sdkPluginType.TypeName = pluginType.FullName;
+                        sdkPluginType.FriendlyName = pluginType.FullName;
 
-                    if (sdkPluginType.Id == Guid.Empty)
-                    {
-                        _trace.WriteLine("Registering Type '{0}'", sdkPluginType.Name);
-                        // Create
-                        sdkPluginType.Id = _service.Create(sdkPluginType);
-                    }
-                    else
-                    {
-                        _trace.WriteLine("Updating Type '{0}'", sdkPluginType.Name);
-                        // Update
-                        _service.Update(sdkPluginType);
+                        if (sdkPluginType.Id == Guid.Empty)
+                        {
+                            _trace.WriteLine("Registering Type '{0}'", sdkPluginType.Name);
+                            // Create
+                            sdkPluginType.Id = _service.Create(sdkPluginType);
+                        }
+                        else
+                        {
+                            _trace.WriteLine("Updating Type '{0}'", sdkPluginType.Name);
+                            // Update
+                            _service.Update(sdkPluginType);
+                        }
                     }
 
                     var existingSteps = GetExistingSteps(sdkPluginType);
